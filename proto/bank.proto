@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package bank;
+
+// gRPC-сервис поверх того же доменного стора, что REST и GraphQL.
+service BankService {
+  rpc ListRates(Empty) returns (RatesResponse);
+  rpc GetRate(RateRequest) returns (CurrencyRate);
+  rpc ListProducts(ProductsRequest) returns (ProductsResponse);
+  rpc ListNews(NewsRequest) returns (NewsResponse);
+}
+
+message Empty {}
+
+message CurrencyRate {
+  string code = 1;
+  int32 nominal = 2;
+  double buy = 3;
+  double sell = 4;
+  string updatedAt = 5;
+}
+
+message RatesResponse {
+  repeated CurrencyRate rates = 1;
+}
+
+message RateRequest {
+  string code = 1;
+}
+
+message Product {
+  string id = 1;
+  string category = 2;
+  string title = 3;
+  double rate = 4;
+  double minAmount = 5;
+  double maxAmount = 6;
+  int32 termMonths = 7;
+  bool featured = 8;
+}
+
+message ProductsRequest {
+  string category = 1; // пусто = все категории
+}
+
+message ProductsResponse {
+  repeated Product products = 1;
+}
+
+message NewsArticle {
+  string id = 1;
+  string slug = 2;
+  string title = 3;
+  string excerpt = 4;
+  string publishedAt = 5;
+  repeated string tags = 6;
+}
+
+message NewsRequest {
+  int32 limit = 1; // 0 = без ограничения
+}
+
+message NewsResponse {
+  repeated NewsArticle articles = 1;
+}
