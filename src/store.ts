@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { bus } from './events.js';
 import type {
   CurrencyRate,
   LoanApplication,
@@ -66,6 +67,21 @@ export const store = {
     list: (): CurrencyRate[] => currencyRates,
     byCode: (code: string): CurrencyRate | undefined =>
       currencyRates.find((r) => r.code === code.toUpperCase()),
+    /**
+     * Слегка «двигает» все курсы (имитация биржи) и публикует событие.
+     * Вызывается тикером — источник real-time обновлений.
+     */
+    tick: (): CurrencyRate[] => {
+      const ts = now();
+      for (const r of currencyRates) {
+        const jitter = (Math.random() - 0.5) * 0.4; // ±0.2
+        r.buy = Math.round((r.buy + jitter) * 100) / 100;
+        r.sell = Math.round((r.sell + jitter + 0.1) * 100) / 100;
+        r.updatedAt = ts;
+      }
+      bus.publish('rate:update', currencyRates);
+      return currencyRates;
+    },
   },
   products: {
     list: (category?: string): Product[] =>
@@ -95,6 +111,7 @@ export const store = {
         status: 'new',
       };
       applications.push(app);
+      bus.publish('application:new', app);
       return app;
     },
   },

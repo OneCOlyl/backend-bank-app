@@ -63,6 +63,28 @@ mutation { login(email:"demo@psbank.ru", password:"demo1234"){ token user { name
 npm run grpc:client   # smoke-проверка
 ```
 
+## Real-time
+
+Курсы валют «живут»: тикер двигает их каждые `RATE_TICK_MS` мс (по умолчанию 3000)
+и публикует событие в общую шину (`src/events.ts`). Две отдачи поверх одной шины (DRY):
+
+| Транспорт | Точка входа | События |
+|-----------|-------------|---------|
+| WebSocket | `ws://localhost:3000/ws` | `rate:update`, `application:new` |
+| SSE | `GET /sse/rates` | `rate:update` |
+
+Событие `application:new` шлётся при создании заявки через любой транспорт (REST/GraphQL).
+
+WebSocket — фильтр по каналам: `{ "action":"subscribe", "channels":["rate:update"] }`.
+Формат сообщений: `{ "type": string, "payload": any }`.
+
+SSE из браузера/Angular без библиотек:
+
+```js
+const es = new EventSource('/sse/rates');
+es.addEventListener('rate:update', (e) => console.log(JSON.parse(e.data)));
+```
+
 ## Рендеринг (демо для фронта)
 
 | Путь | Режим | Заголовки |
@@ -85,6 +107,10 @@ src/auth.ts             JWT, middleware, проверка пароля
 src/rest/routes.ts      REST-роуты + валидация Zod
 src/graphql/            схема + резолверы
 src/grpc/server.ts      gRPC-сервер
+src/events.ts           типизированная шина событий (real-time)
+src/realtime/ticker.ts  генератор обновлений курсов
+src/realtime/ws.ts      WebSocket-шлюз
+src/realtime/sse.ts     SSE-поток
 src/ssr/render.ts       SSR/ISR/CSR роуты
 src/server.ts           сборка приложения
 scripts/grpc-client.ts  тест-клиент gRPC

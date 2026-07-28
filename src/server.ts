@@ -1,3 +1,4 @@
+import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import express from 'express';
@@ -8,6 +9,9 @@ import { expressMiddleware } from '@apollo/server/express4';
 import { config } from './config.js';
 import { restRouter } from './rest/routes.js';
 import { ssrRouter } from './ssr/render.js';
+import { sseRouter } from './realtime/sse.js';
+import { attachWebSocket } from './realtime/ws.js';
+import { startRateTicker } from './realtime/ticker.js';
 import { typeDefs } from './graphql/schema.js';
 import { resolvers, type GqlContext } from './graphql/resolvers.js';
 import { verifyToken } from './auth.js';
@@ -55,17 +59,29 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
+  // Real-time: SSE поверх шины событий
+  app.use('/', sseRouter);
+
   // SSR / ISR / CSR демонстрационные роуты
   app.use('/', ssrRouter);
 
   // Статика (SSG)
   app.use(express.static(resolve(__dirname, '../public')));
 
-  app.listen(config.httpPort, () => {
+  // Свой http.Server, чтобы повесить WebSocket на тот же порт
+  const httpServer = createServer(app);
+  attachWebSocket(httpServer);
+
+  httpServer.listen(config.httpPort, () => {
     console.log(`HTTP  → http://localhost:${config.httpPort}`);
     console.log(`REST  → http://localhost:${config.httpPort}/api/v1`);
     console.log(`GQL   → http://localhost:${config.httpPort}/graphql`);
+    console.log(`WS    → ws://localhost:${config.httpPort}/ws`);
+    console.log(`SSE   → http://localhost:${config.httpPort}/sse/rates`);
   });
+
+  // Запускаем генератор real-time данных (тикер курсов)
+  startRateTicker();
 
   await startGrpcServer();
 }
